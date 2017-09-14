@@ -8,7 +8,7 @@ class App extends Component {
   render() {
     return (
       <main>
-        <TodoPage/>
+        <TodoPage />
       </main>
     );
   }
