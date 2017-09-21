@@ -3,11 +3,11 @@ import React, { Component } from 'react';
 import axios from 'axios';
 
 import {
-    Table, Button,
-    Modal, ButtonGroup,
+    Button,
 } from 'react-bootstrap';
 
 import TodoForm from '../components/TodoForm';
+import TodoTable from '../components/TodoTable';
 
 class TodoPage extends Component {
 
@@ -21,14 +21,14 @@ class TodoPage extends Component {
 
     getTodos = () => {
         return axios.get('http://localhost:3001/todos')
-                .then((response) => {
-                    console.log(response);
-                    this.setState({
-                        todos: response.data
-                    });
-                }).catch((error) => {
-                    console.error(error);
-                })
+            .then((response) => {
+                console.log(response);
+                this.setState({
+                    todos: response.data
+                });
+            }).catch((error) => {
+                console.error(error);
+            })
     }
 
     onExcluirClick = (todo) => {
@@ -47,46 +47,55 @@ class TodoPage extends Component {
         }
     }
 
-    renderTodo = () => {
-        const todos = this.state.todos;
-
-        const todosComponents = todos.map((todo, index) => {
-            return (
-                <tr>
-                    <td>{todo.id}</td>
-                    <td>{todo.title}</td>
-                    <td>{todo.date}</td>
-                    <td>{todo.completed}</td>
-                    <td>
-                        <ButtonGroup bsSize="small">
-                            <Button bsStyle="warning">Editar</Button>
-                            <Button bsStyle="danger"
-                                onClick={() => this.onExcluirClick(todo)}>
-                                Excluir
-                            </Button>
-                        </ButtonGroup>
-                    </td>
-                </tr>
-            );
-        });
-
-        return todosComponents;
-    }
+    onEditarClick = (todo) => {
+        this.setState({
+            showForm: true,
+            selectedTodo: todo,
+        })
+    }    
 
     onNewTodoClick = () => {
-        this.setState({ showForm: true })
+        this.setState({
+            showForm: true,
+            selectedTodo: {
+                id: '',
+                title: '',
+                description: '',
+            }
+        })
     }
 
     onFormClose = () => {
         this.setState({ showForm: false })
     }
 
-    onTodoSave = (title, description) => {
+    onTodoSave = (id, title, description) => {
         const data = {
             title: title,
             description: description
         }
 
+        if (id) {
+            this.putTodo(id, data);
+        } else {
+            this.postTodo(data);
+        }
+    }
+
+    putTodo = (id, data) => {
+        const url = 'http://localhost:3001/todos/' + id;
+        axios.put(url, data)
+        .then((response) => {
+            if (response.status === 200) {
+                this.setState({ showForm: false });
+                return this.getTodos();
+            }
+        }).catch((ex) => {
+            console.warn(ex);
+        })
+    }
+
+    postTodo = (data) => {
         axios.post('http://localhost:3001/todos/', data)
             .then((response) => {
                 if (response.status === 201) {
@@ -111,23 +120,13 @@ class TodoPage extends Component {
                     Nova Tarefa
                 </Button>
 
-                <Table>
-                    <thead>
-                        <tr>
-                            <th>#</th>
-                            <th>Título</th>
-                            <th>Data</th>
-                            <th>Concluída</th>
-                            <th>Options</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {this.renderTodo()}
-                    </tbody>
-                </Table>
+                <TodoTable todos={todos}
+                    onEditarClick={this.onEditarClick}
+                    onExcluirClick={this.onExcluirClick}/>
 
                 <TodoForm showForm={showForm} onClose={this.onFormClose}
-                    onSave={this.onTodoSave} />
+                    onSave={this.onTodoSave}
+                    selectedTodo={this.state.selectedTodo} />
             </section>
         );
     }
