@@ -3,7 +3,7 @@ import React, { Component } from 'react';
 import axios from 'axios';
 
 import {
-    Button,
+    Button, FormGroup, InputGroup, FormControl
 } from 'react-bootstrap';
 
 import TodoForm from '../components/TodoForm';
@@ -12,33 +12,40 @@ import TodoTable from '../components/TodoTable';
 class TodoPage extends Component {
 
     state = {
-        todos: []
+        todos: [],
+        busca: '',
+        selectedTodo: {}
     }
 
+    // executado após a página ser carregada
     componentDidMount() {
         this.getTodos();
     }
 
     getTodos = () => {
-        return axios.get('http://localhost:3001/todos')
-            .then((response) => {
-                console.log(response);
-                this.setState({
-                    todos: response.data
-                });
-            }).catch((error) => {
-                console.error(error);
-            })
+        return axios.get('http://localhost:3001/todos/', {
+            params: {
+                busca: this.state.busca
+            }
+        }).then((response) => {
+            console.log(response);
+            this.setState({
+                todos: response.data
+            });
+        }).catch((error) => {
+            console.error(error);
+        })
     }
 
     onExcluirClick = (todo) => {
-        const confirm = window.confirm("Deseja excluir a tarefa " + todo.id + "?");
+        const confirm =
+            window.confirm("Deseja excluir a tarefa '" + todo.title + "'?");
 
         if (confirm) {
             const url = "http://localhost:3001/todos/" + todo.id;
             axios.delete(url)
                 .then((response) => {
-                    if (response.status == 200) {
+                    if (response.status === 204) {
                         return this.getTodos();
                     }
                 }).catch((ex) => {
@@ -52,7 +59,7 @@ class TodoPage extends Component {
             showForm: true,
             selectedTodo: todo,
         })
-    }    
+    }
 
     onNewTodoClick = () => {
         this.setState({
@@ -73,8 +80,7 @@ class TodoPage extends Component {
         const data = {
             title: title,
             description: description
-        }
-
+        };
         if (id) {
             this.putTodo(id, data);
         } else {
@@ -85,14 +91,14 @@ class TodoPage extends Component {
     putTodo = (id, data) => {
         const url = 'http://localhost:3001/todos/' + id;
         axios.put(url, data)
-        .then((response) => {
-            if (response.status === 200) {
-                this.setState({ showForm: false });
-                return this.getTodos();
-            }
-        }).catch((ex) => {
-            console.warn(ex);
-        })
+            .then((response) => {
+                if (response.status === 200) {
+                    this.setState({ showForm: false });
+                    return this.getTodos();
+                }
+            }).catch((ex) => {
+                console.warn(ex);
+            });
     }
 
     postTodo = (data) => {
@@ -107,13 +113,50 @@ class TodoPage extends Component {
             })
     }
 
+    onConcluidaChange = (todoId, concluida) => {
+        let method;
+        if (concluida) {
+            method = axios.put;
+        } else {
+            method = axios.delete;
+        }
+        method(`http://localhost:3001/todos/${todoId}/completed`)
+            .then(response => {
+                if (response.status === 204) {
+                    return this.getTodos();
+                }
+            }).catch(ex => {
+                console.error(ex, ex.response);
+            });
+    }
+
+    onBuscaChange = (event) => {
+        this.setState({
+            busca: event.target.value
+        }, () => {
+            //cancela o agendamento da consulta
+            clearTimeout(this.buscaTimeout);
+            //agenda uma consulta
+            this.buscaTimeout = setTimeout(() => {
+                this.getTodos();
+            }, 1000);
+        });
+    }
+
     render() {
-        const todos = this.state.todos;
-        const showForm = this.state.showForm;
+        const { todos, busca } = this.state;
 
         return (
             <section>
                 <h1>Página de Tarefas</h1>
+
+                <FormGroup>
+                    <InputGroup>
+                        <InputGroup.Addon>Busca</InputGroup.Addon>
+                        <FormControl type="text" placeholder="título ou descrição"
+                            onChange={this.onBuscaChange} value={busca} />
+                    </InputGroup>
+                </FormGroup>
 
                 <Button bsSize="small" bsStyle="success"
                     onClick={this.onNewTodoClick}>
@@ -122,9 +165,11 @@ class TodoPage extends Component {
 
                 <TodoTable todos={todos}
                     onEditarClick={this.onEditarClick}
-                    onExcluirClick={this.onExcluirClick}/>
+                    onExcluirClick={this.onExcluirClick}
+                    onConcluidaChange={this.onConcluidaChange} />
 
-                <TodoForm showForm={showForm} onClose={this.onFormClose}
+                <TodoForm showForm={this.state.showForm}
+                    onClose={this.onFormClose}
                     onSave={this.onTodoSave}
                     selectedTodo={this.state.selectedTodo} />
             </section>
